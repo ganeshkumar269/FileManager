@@ -1,9 +1,68 @@
-#include<fstream>
-#include<iostream>
-#include<time.h>
-#include<string.h>
-#include<process.h>
+#include <fstream>
+#include <iostream>
+#include <time.h>
+#include <string.h>
+#include <process.h>
+#include "sqlite3.h"
+#include <ctime>
 using namespace std;
+static int callback(void* data, int argc, char** argv, char** azColName) { 
+    int i; 
+    fprintf(stderr, "%s: ", (const char*)data); 
+  
+    for (i = 0; i < argc; i++) { 
+        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL"); 
+    } 
+  
+    printf("\n"); 
+    return 0; 
+}
+
+void insert(sqlite3 *db,string fileName,char *Time){
+    char* messageError;
+    string query="insert into database values(\"" + fileName + "\"" + ",\"" + Time + "\");";
+    int exit=sqlite3_exec(db,query.c_str(),NULL,0,&messageError);
+    if(exit!=SQLITE_OK)
+        cout<<"Error Bruv :"<<messageError<<endl;
+    else
+        cout<<"Success in inserting"<<endl;
+}
+
+void printAll(sqlite3 *db){
+    string query = "select * from database";
+    char* messageError;
+    sqlite3_exec(db,query.c_str(),callback,NULL,NULL);
+}
+bool searchDB(sqlite3* db,string fileName){
+    string query = "select * from database where fileName=\""+fileName+"\";";
+    char *messageError;
+    sqlite3_stmt *stmt;
+    sqlite3_prepare_v2(db,query.c_str(),query.length(),&stmt,NULL);
+    int code;
+    if((code = sqlite3_step(stmt)) == SQLITE_ROW){
+        printf("fileName:%s TimeStamp:%s \n",sqlite3_column_text(stmt,0),sqlite3_column_text(stmt,1));
+        sqlite3_finalize(stmt);
+        return true;
+    }
+    printf("Not Found\n");
+    sqlite3_finalize(stmt);
+    return false;
+}
+
+bool isNew(sqlite3* db){
+    string query = "SELECT * FROM sqlite_master WHERE type='table' AND name='{database}'; ";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db,query.c_str(),query.length(),&stmt,NULL);
+    int code ;
+    if((code = sqlite3_step(stmt)) == SQLITE_ROW) {
+       cout<<"Database is New"<<endl;
+       return true;
+    }
+    else{
+        cout<<"Database is not New"<<endl;
+        return false;
+    }
+}
 
 bool searchFile(char filename[100],char name[100]){
      ifstream file(filename,ios::binary);
@@ -20,7 +79,7 @@ bool searchFile(char filename[100],char name[100]){
     return false;
 }
 
-char tostring(int num,char str[10]){
+string toString(int num,string str){
     int i=0;
     while(num!=0){
         int temp=num%10;
@@ -35,12 +94,14 @@ char tostring(int num,char str[10]){
         str[j]=str[i-j-1];
         str[i-j-1]=temp;
     }
-
+    return str;
 }
-
+/*
 int main(){
     srand(time(NULL));
     int a=rand();
+    time_t now = time(0);
+    char *Time = ctime(&now);
     char name[100];
     char nameWithoutFormat[100];
     cout<<"Enter Name of the file (type 'rand' for a random name):";
@@ -49,6 +110,7 @@ int main(){
         tostring(a,name);
     strcpy(nameWithoutFormat,name);
     char fileName[100]="log.txt";
+    sqlite3 *db;
     if(!searchFile(fileName,nameWithoutFormat)){
         char format[5]=".cpp";
         strcat(name,format);
@@ -78,4 +140,73 @@ int main(){
     system(str);
     cout<<"Enjoy Coding!";
     exit(NULL);
+}
+*/
+
+int main(){
+    srand(time(NULL));
+    int a = rand();
+    time_t now = time(0);
+    char *Time = ctime(&now);
+    string name;
+    sqlite3* db;
+    sqlite3_open("D:\\filesLog.db",&db); // Name of the DB-file
+    bool random = false, exists = false;
+    cout<<"Enter Name of the file (type 'rand' for a random name): ";
+    cin>>name;
+    if(isNew(db)){
+        string query = "create table database(fileName text, TimeStamp text);";
+        sqlite3_stmt* stmt;
+        sqlite3_prepare_v2(db,query.c_str(),query.length(),&stmt,NULL);
+        int code = sqlite3_step(stmt);
+        if(code == SQLITE_OK){
+            cout<<"Created Database"<<endl;
+        }
+        else{
+            cout<<"Error in creating database"<<endl;
+        }
+    }
+
+    if( name == "rand"){
+        name = toString(a,name);
+        cout<<"Random name is selected"<<endl;
+        random = true;
+    }
+    
+    if(!random){
+        if(!searchDB(db,name)){
+            insert(db,name,Time);
+            cout<<"Opening a new file "<<name<<".cpp"<<endl;
+        }
+        else{
+            exists = true;
+            cout<<"Opening existing file "<<name<<".cpp"<<endl;
+        }
+    }
+    else{
+        insert(db,name,Time);
+        cout<<"Opening a random file "<<name<<".cpp"<<endl;
+    }
+    string format(".cpp");
+    name.append(".cpp");
+    cout<<"The name of the file after appending format :"<<name<<endl;
+    if(!exists){
+        string path = "D:\\codeblocks\\"+name;
+        ofstream file(path.c_str());
+        if(!file.is_open())
+            cout<<"Opening "<<name<<" Failed"<<endl;
+        else {
+            file<<"#include<iostream>"<<endl;
+            file<<"using namespace std;"<<endl;
+            file<<"int main(){"<<endl;
+            file<<"\t"<<endl;
+            file<<"}";
+            file.close();           
+        }
+    } 
+    string command = "D:\\codeblocks\\"+name;
+    system(command.c_str());
+    system("exit");
+    cout<<"Successfully Opened "<<command;
+    return 0;
 }
