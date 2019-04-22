@@ -62,6 +62,22 @@ bool searchDB(sqlite3* db,string fileName){
     return false;
 }
 
+void deleteRecord(sqlite3* db,string fileName){
+    fileName = fileName.substr(0,fileName.find('.'));
+    string query = "delete from database where fileName=\""+fileName+"\";";
+    char *messageError;
+    sqlite3_stmt *stmt;
+    sqlite3_prepare_v2(db,query.c_str(),query.length(),&stmt,NULL);
+    int code = sqlite3_step(stmt);
+    if(code == SQLITE_DONE)
+        cout<<"Successsfully deleted "<<fileName<<" from the database."<<endl;
+    else
+    {
+        cout<<"Error in deletion of "<<fileName<<endl;
+    }
+    
+}
+
 void cleanUpFunc(sqlite3* db){
     string query = "SELECT fileName FROM database; ";
     sqlite3_stmt* stmt;
@@ -89,6 +105,7 @@ void cleanUpFunc(sqlite3* db){
             string tempPath = "D:\\codeblocks\\"+tempFileName;
             if(remove(tempPath.c_str()) == 0){
                 cout<<"Successfully removed "<<fileName<<endl;
+                deleteRecord(db,tempFileName);
                 count++;
             }
             else
