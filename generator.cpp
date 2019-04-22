@@ -10,12 +10,14 @@ using namespace std;
 enum commandList{
     cleanUp,
     printAll,
-    help
+    help,
+    notCommand
 };
 commandList hashit(string const& inString){
     if(inString == "cleanUp") return cleanUp;
     if(inString == "printAll") return printAll;
     if(inString == "help") return help;
+    return notCommand;
 }
 static int callback(void* data, int argc, char** argv, char** azColName) { 
     int i; 
@@ -70,26 +72,34 @@ void cleanUpFunc(sqlite3* db){
         auto fileName = sqlite3_column_text(stmt,0);
         char ext[10] = ".cpp";
         strcat((char*)fileName,ext);
-        ifstream file((char*)fileName);
+        string path = "D:\\codeblocks\\";
+        path.append((char*)fileName);
+        cout<<"Path :"<<path<<endl;
+        ifstream file(path);
+        cout<<"Processing file "<<fileName<<endl;
+        if(!file.is_open())
+            cout<<"Operation to open the file failed"<<endl;
+        
         file.seekg(0,ios::end);
         int n = file.tellg();
         file.close();
+        cout<<"File Size is :"<<n<<endl;
         if(n == 59){
-            if(remove((char*)fileName) == 0){
+            string tempFileName((char*)fileName);
+            string tempPath = "D:\\codeblocks\\"+tempFileName;
+            if(remove(tempPath.c_str()) == 0){
                 cout<<"Successfully removed "<<fileName<<endl;
                 count++;
             }
             else
                 cout<<"Removal of "<<fileName<<" unsuccessful"<<endl;
         }
-        if(count!=0)
-            cout<<"Freed "<<count*59<<" bytes of memory, you're welcome"<<endl;
-        else
-        {
-            cout<<"Nothing to be freed, today's not the day for me"<<endl;
-        }
-        
     }
+    if(count)
+        cout<<"Freed "<<count*59<<" bytes of memory, you're welcome"<<endl;
+    else
+        cout<<"Nothing to be freed, today's not the day for me"<<endl;
+    
 }
 
 bool isNew(sqlite3* db){
@@ -108,10 +118,11 @@ bool isNew(sqlite3* db){
 }
 
 void helpMenu(){
-    cout<<"These are command name and must not be used for names for files"<<endl;
+    cout<<"These are commands and must not be used as names for files."<<endl;
     cout<<"commands:"<<endl;
-    cout<<"cleanUp  ---- helps remove unused/unwanted files in the directory"<<endl;
-    cout<<"printAll ---- prints all the files recorded by the database"<<endl;
+    cout<<"cleanUp  ---- helps remove unused/unwanted files in the directory."<<endl;
+    cout<<"printAll ---- prints all the files recorded by the database."<<endl;
+    cout<<"help     ---- you probably know what this does.";
     cout<<"Thats all"<<endl;
 }
 
