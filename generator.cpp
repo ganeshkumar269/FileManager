@@ -6,12 +6,23 @@
 #include "sqlite3.h"
 #include <ctime>
 using namespace std;
+//command list
+enum commandList{
+    cleanUp,
+    printAll,
+    help
+};
+commandList hashit(string const& inString){
+    if(inString == "cleanUp") return cleanUp;
+    if(inString == "printAll") return printAll;
+    if(inString == "help") return help;
+}
 static int callback(void* data, int argc, char** argv, char** azColName) { 
     int i; 
     fprintf(stderr, "%s: ", (const char*)data); 
   
     for (i = 0; i < argc; i++) { 
-        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL"); 
+        printf("%s : %s\n", azColName[i], argv[i] ? argv[i] : "NULL"); 
     } 
   
     printf("\n"); 
@@ -28,7 +39,7 @@ void insert(sqlite3 *db,string fileName,char *Time){
         cout<<"Success in inserting"<<endl;
 }
 
-void printAll(sqlite3 *db){
+void printAllFunc(sqlite3 *db){
     string query = "select * from database";
     char* messageError;
     sqlite3_exec(db,query.c_str(),callback,NULL,NULL);
@@ -49,6 +60,38 @@ bool searchDB(sqlite3* db,string fileName){
     return false;
 }
 
+void cleanUpFunc(sqlite3* db){
+    string query = "SELECT fileName FROM database; ";
+    sqlite3_stmt* stmt;
+    int code;
+    int count = 0;
+    sqlite3_prepare_v2(db,query.c_str(),query.length(),&stmt,NULL);
+    while((code = sqlite3_step(stmt)) == SQLITE_ROW){
+        auto fileName = sqlite3_column_text(stmt,0);
+        char ext[10] = ".cpp";
+        strcat((char*)fileName,ext);
+        ifstream file((char*)fileName);
+        file.seekg(0,ios::end);
+        int n = file.tellg();
+        file.close();
+        if(n == 59){
+            if(remove((char*)fileName) == 0){
+                cout<<"Successfully removed "<<fileName<<endl;
+                count++;
+            }
+            else
+                cout<<"Removal of "<<fileName<<" unsuccessful"<<endl;
+        }
+        if(count!=0)
+            cout<<"Freed "<<count*59<<" bytes of memory, you're welcome"<<endl;
+        else
+        {
+            cout<<"Nothing to be freed, today's not the day for me"<<endl;
+        }
+        
+    }
+}
+
 bool isNew(sqlite3* db){
     string query = "SELECT * FROM sqlite_master WHERE type='table' AND name='{database}'; ";
     sqlite3_stmt* stmt;
@@ -62,6 +105,14 @@ bool isNew(sqlite3* db){
         cout<<"Database is not New"<<endl;
         return false;
     }
+}
+
+void helpMenu(){
+    cout<<"These are command name and must not be used for names for files"<<endl;
+    cout<<"commands:"<<endl;
+    cout<<"cleanUp  ---- helps remove unused/unwanted files in the directory"<<endl;
+    cout<<"printAll ---- prints all the files recorded by the database"<<endl;
+    cout<<"Thats all"<<endl;
 }
 
 bool searchFile(char filename[100],char name[100]){
@@ -166,47 +217,60 @@ int main(){
             cout<<"Error in creating database"<<endl;
         }
     }
-
-    if( name == "rand"){
-        name = toString(a,name);
-        cout<<"Random name is selected"<<endl;
-        random = true;
-    }
-    
-    if(!random){
-        if(!searchDB(db,name)){
-            insert(db,name,Time);
-            cout<<"Opening a new file "<<name<<".cpp"<<endl;
+    switch(hashit(name)){
+        case cleanUp:
+            cout<<"CleanUp started"<<endl;
+            cleanUpFunc(db);
+            cout<<"CleanUp ended";
+            break;
+        case printAll:
+            printAllFunc(db);
+            break;
+        case help:
+            helpMenu();
+            break;
+        default:
+        if( name == "rand"){
+            name = toString(a,name);
+            cout<<"Random name is selected"<<endl;
+            random = true;
+        }
+        
+        if(!random){
+            if(!searchDB(db,name)){
+                insert(db,name,Time);
+                cout<<"Opening a new file "<<name<<".cpp"<<endl;
+            }
+            else{
+                exists = true;
+                cout<<"Opening existing file "<<name<<".cpp"<<endl;
+            }
         }
         else{
-            exists = true;
-            cout<<"Opening existing file "<<name<<".cpp"<<endl;
+            insert(db,name,Time);
+            cout<<"Opening a random file "<<name<<".cpp"<<endl;
         }
+        string format(".cpp");
+        name.append(".cpp");
+        cout<<"The name of the file after appending format :"<<name<<endl;
+        if(!exists){
+            string path = "D:\\codeblocks\\"+name;
+            ofstream file(path.c_str());
+            if(!file.is_open())
+                cout<<"Opening "<<name<<" Failed"<<endl;
+            else {
+                file<<"#include<iostream>"<<endl;
+                file<<"using namespace std;"<<endl;
+                file<<"int main(){"<<endl;
+                file<<"\t"<<endl;
+                file<<"}";
+                file.close();           
+            }
+        } 
+        string command = "D:\\codeblocks\\"+name;
+        system(command.c_str());
+        system("exit");
+        cout<<"Successfully Opened "<<command;
     }
-    else{
-        insert(db,name,Time);
-        cout<<"Opening a random file "<<name<<".cpp"<<endl;
-    }
-    string format(".cpp");
-    name.append(".cpp");
-    cout<<"The name of the file after appending format :"<<name<<endl;
-    if(!exists){
-        string path = "D:\\codeblocks\\"+name;
-        ofstream file(path.c_str());
-        if(!file.is_open())
-            cout<<"Opening "<<name<<" Failed"<<endl;
-        else {
-            file<<"#include<iostream>"<<endl;
-            file<<"using namespace std;"<<endl;
-            file<<"int main(){"<<endl;
-            file<<"\t"<<endl;
-            file<<"}";
-            file.close();           
-        }
-    } 
-    string command = "D:\\codeblocks\\"+name;
-    system(command.c_str());
-    system("exit");
-    cout<<"Successfully Opened "<<command;
-    return 0;
+        return 0;
 }
