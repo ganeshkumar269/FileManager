@@ -23,12 +23,14 @@ enum commandList{   //if u want to add additional commands include it here.
     cleanUp,
     printAll,
     help,
+    quit,
     notCommand
 };
 commandList hashit(string const& inString){  
     if(inString == "cleanUp") return cleanUp;
     if(inString == "printAll") return printAll;
     if(inString == "help") return help;
+    if(inString == "quit") return quit;
     return notCommand;
 }
 static int callback(void* data, int argc, char** argv, char** azColName) { //called by sqlite3_exec
@@ -70,7 +72,7 @@ bool searchDB(sqlite3* db,string fileName){ //searches for the filename in the d
         sqlite3_finalize(stmt);
         return true;
     }
-    printf("Not Found\n");
+    printf("Not Found inside database\n");
     sqlite3_finalize(stmt);
     return false;
 }
@@ -172,7 +174,7 @@ bool searchFile(char filename[100],char name[100]){//using c++ files ---deprecat
     return false;
 }
 
-string toString(int num){  //converts integer to string and returns the string
+/*string toString(int num){  //converts integer to string and returns the string
     int i=0;
     string str;
     while(num!=0){
@@ -189,7 +191,7 @@ string toString(int num){  //converts integer to string and returns the string
         str[i-j-1]=temp;
     }
     return str;
-}
+}*/
 /*
 int main(){
     srand(time(NULL));
@@ -239,15 +241,9 @@ int main(){
 
 int main(){
     srand(time(NULL));//setting the random seed corresponding to the current time value
-    int a = rand(); //picking random value
-    time_t now = time(0);
-    char *Time = ctime(&now);  //timeStamp
     string name;
     sqlite3* db;
     sqlite3_open("D:\\filesLog.db",&db); // Name of the DB-file
-    bool random = false, exists = false;
-    cout<<"Enter Name of the file ('rand' for a random name, 'help' for helpMenu): ";
-    cin>>name;
     if(isNew(db)){
         string query = "create table database(fileName text, TimeStamp text);";
         sqlite3_stmt* stmt;
@@ -260,60 +256,72 @@ int main(){
             cout<<"Error in creating database"<<endl;
         }
     }
-    switch(hashit(name)){
-        case cleanUp:
-            cout<<"CleanUp started"<<endl;
-            cleanUpFunc(db);
-            cout<<"CleanUp ended";
-            break;
-        case printAll:
-            printAllFunc(db);
-            break;
-        case help:
-            helpMenu();
-            break;
-        default:
-        if( name == "rand"){
-            name = toString(a);
-            cout<<"Random name is selected"<<endl;
-            random = true;
+    do {
+        cout<<"Enter Name of the file ('rand' for a random name, 'help' for helpMenu): ";
+        cin>>name;
+        bool random = false, exists = false;
+        switch(hashit(name)){
+            case cleanUp:
+                cout<<"CleanUp started"<<endl;
+                cleanUpFunc(db);
+                cout<<"CleanUp ended"<<endl;
+                break;
+            case printAll:
+                printAllFunc(db);
+                break;
+            case help:
+                helpMenu();
+                break;
+            case quit:
+                break;
+            default:
+                if( name == "rand"){
+                    int a = rand(); //picking random value
+                    cout<<"The random name selected is:"<<a<<endl;
+                    name = to_string(a);
+                    random = true;
+                }
+                
+                if(!random){
+                    if(!searchDB(db,name)){
+                        time_t now = time(0);
+                        char *Time = ctime(&now);  //timeStamp
+                        insert(db,name,Time);
+                        cout<<"Opening a new file "<<name<<".cpp"<<endl;
+                    }
+                    else{
+                        exists = true;
+                        cout<<"Opening existing file "<<name<<".cpp"<<endl;
+                    }
+                }
+                else{
+                    time_t now = time(0);
+                    char *Time = ctime(&now);  //timeStamp
+                    insert(db,name,Time);
+                    cout<<"Opening a random file "<<name<<".cpp"<<endl;
+                }
+                string format(".cpp");
+                name.append(".cpp");
+                cout<<"The name of the file after appending format :"<<name<<endl;
+                if(!exists){
+                    string path = "D:\\codeblocks\\"+name;
+                    ofstream file(path.c_str());
+                    if(!file.is_open())
+                        cout<<"Opening "<<name<<" Failed"<<endl;
+                    else {
+                        file<<"#include<iostream>"<<endl;
+                        file<<"using namespace std;"<<endl;
+                        file<<"int main(){"<<endl;
+                        file<<"\t"<<endl;
+                        file<<"}";
+                        file.close();           
+                    }
+                } 
+                string pathOfDestination = "D:\\codeblocks\\"+name;
+                system(pathOfDestination.c_str());
+                cout<<"Successfully Opened "<<pathOfDestination<<endl;
         }
-        
-        if(!random){
-            if(!searchDB(db,name)){
-                insert(db,name,Time);
-                cout<<"Opening a new file "<<name<<".cpp"<<endl;
-            }
-            else{
-                exists = true;
-                cout<<"Opening existing file "<<name<<".cpp"<<endl;
-            }
-        }
-        else{
-            insert(db,name,Time);
-            cout<<"Opening a random file "<<name<<".cpp"<<endl;
-        }
-        string format(".cpp");
-        name.append(".cpp");
-        cout<<"The name of the file after appending format :"<<name<<endl;
-        if(!exists){
-            string path = "D:\\codeblocks\\"+name;
-            ofstream file(path.c_str());
-            if(!file.is_open())
-                cout<<"Opening "<<name<<" Failed"<<endl;
-            else {
-                file<<"#include<iostream>"<<endl;
-                file<<"using namespace std;"<<endl;
-                file<<"int main(){"<<endl;
-                file<<"\t"<<endl;
-                file<<"}";
-                file.close();           
-            }
-        } 
-        string pathOfDestination = "D:\\codeblocks\\"+name;
-        system(pathOfDestination.c_str());
-        system("exit");
-        cout<<"Successfully Opened "<<pathOfDestination;
-    }
-        return 0;
+    }while(name != "quit");
+    system("exit");
+    return 0;
 }
