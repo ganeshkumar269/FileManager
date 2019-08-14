@@ -15,7 +15,9 @@ bool searchDB(sqlite3* ,string );//searches for the filename in the db if found 
 void deleteRecord(sqlite3* ,string );//deletes the record containing the filename
 void cleanUpFunc(sqlite3* );//deletes the file whose size is 59 bytes ie, unedited after creation 
 bool isNew(sqlite3* ); //returns true if the database has been created for the first time
-string toString(int);  //converts integer to string and returns the string
+void getRecent(sqlite3*);
+
+//string toString(int);  //converts integer to string and returns the string - deprecated
 void helpMenu();
 
 //command list
@@ -24,6 +26,7 @@ enum commandList{   //if u want to add additional commands include it here.
     printAll,
     help,
     quit,
+    recent,
     notCommand
 };
 commandList hashit(string const& inString){  
@@ -31,6 +34,7 @@ commandList hashit(string const& inString){
     if(inString == "printAll") return printAll;
     if(inString == "help") return help;
     if(inString == "quit") return quit;
+    if(inString == "recent") return recent;
     return notCommand;
 }
 static int callback(void* data, int argc, char** argv, char** azColName) { //called by sqlite3_exec
@@ -174,6 +178,11 @@ bool searchFile(char filename[100],char name[100]){//using c++ files ---deprecat
     return false;
 }
 
+void getRecent(sqlite3* db){
+    string query = "select * from database order by ID DESC LIMIT 1";
+    sqlite3_exec(db,query.c_str(),callback,NULL,NULL);
+}
+
 /*string toString(int num){  //converts integer to string and returns the string
     int i=0;
     string str;
@@ -274,6 +283,9 @@ int main(){
                 break;
             case quit:
                 break;
+            case recent:
+                getRecent(db);
+                break;
             default:
                 if( name == "rand"){
                     int a = rand(); //picking random value
@@ -306,15 +318,13 @@ int main(){
                 if(!exists){
                     string path = "D:\\codeblocks\\"+name;
                     ofstream file(path.c_str());
+                    ifstream fin ("boilerplate.cpp");
+                    char temp[200];
                     if(!file.is_open())
                         cout<<"Opening "<<name<<" Failed"<<endl;
-                    else {
-                        file<<"#include<iostream>"<<endl;
-                        file<<"using namespace std;"<<endl;
-                        file<<"int main(){"<<endl;
-                        file<<"\t"<<endl;
-                        file<<"}";
-                        file.close();           
+                    while(!fin.eof()){
+                        fin.getline(temp,200);
+                        file<<temp<<endl;
                     }
                 } 
                 string pathOfDestination = "D:\\codeblocks\\"+name;
